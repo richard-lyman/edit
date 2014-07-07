@@ -24,7 +24,7 @@
  1. Login using 'admin' and the password you provided above or some other account
  1. Enter [Pandoc Markdown](http://johnmacfarlane.net/pandoc/demo/example9/pandocs-markdown.html)
  1. Type Ctrl-s
- 1. Type Ctrl-e to stop editing
+ 1. Type Ctrl-e whenever you're done editing
 
 ### Generating a cert.pem and key.pem
  1. Generate a new unencrypted rsa private key in PEM format:
