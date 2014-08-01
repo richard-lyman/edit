@@ -29,7 +29,7 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 var adminUsername = "admin"
-var adminPassword = "a"
+var adminPassword = ""
 var webroot = "webroot"
 
 var rootTitle = "An Editable Site"
