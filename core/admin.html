@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" data-ng-app="Admin">
+	<head>
+		<title>Admin</title>
+		<meta charset="UTF-8">
+		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+		<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	</head>
+	<body data-ng-controller="Admin">
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+		<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.19/angular.min.js"></script>
+		<script src="/keymaster.js"></script>
+		<div>
+			<input type="text" data-ng-model="form.username"></input>
+			<button data-ng-click="addUser()">Add User</button>
+			<button data-ng-click="removeUser()">Remove User</button>
+		</div>
+		<div><input type="text" data-ng-model="form.adminname"></input> <button data-ng-click="addAdmin()">Add Admin</button> </div>
+		<div><input type="text" data-ng-model="form.filepath"></input> <button data-ng-click="removeFile()">Remove File</button> </div>
+		<div>
+			<input type="text" data-ng-model="form.path"></input>
+			<button data-ng-click="lockPath()">Lock</button>
+			<button data-ng-click="unlockPath()">Unlock</button>
+		</div>
+		<script>
+			angular.module("Admin", [])
+				.controller("Admin", ["$scope", "$http", function($scope, $http){
+					$scope.form = {};
+					$scope.addUser = function(){
+						$http({method:'POST', url:'/admin', data:$scope.form.username})
+							.success(function(){ console.log("Adding user worked"); })
+							.error(function(){ console.log("Adding user failed:", arguments); });
+					}
+					$scope.removeUser = function(){
+						$http({method:'PUT', url:'/admin/remove', data:$scope.form.username})
+							.success(function(){ console.log("Removing user worked"); })
+							.error(function(){ console.log("Removing user failed:", arguments); });
+					}
+					$scope.addAdmin = function(){
+						$http({method:'PUT', url:'/admin', data:$scope.form.adminname})
+							.success(function(){ console.log("Adding admin worked"); })
+							.error(function(){ console.log("Adding admin failed:", arguments); });
+					}
+					$scope.removeFile = function(){
+						$http({method:'PUT', url:'/file/', data:$scope.form.filepath})
+							.success(function(){ console.log("Removing file worked"); })
+							.error(function(){ console.log("Removing file failed:", arguments); });
+					}
+					$scope.lockPath = function(){
+						$http({method:'PATCH', url:'/lock', data:$scope.form.path})
+							.success(function(){ console.log("Locking path worked"); })
+							.error(function(){ console.log("Locking path failed:", arguments); });
+					}
+					$scope.unlockPath = function(){
+						$http({method:'PATCH', url:'/unlock', data:$scope.form.path})
+							.success(function(){ console.log("Unlocking path worked"); })
+							.error(function(){ console.log("Unlocking path failed:", arguments); });
+					}
+				}]);
+		</script>
+	</body>
+</html>
