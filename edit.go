@@ -158,7 +158,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("A working connection to a Redis instance is required: %s - You may need to tweak the config.go file prior to building.", err))
 	}
-	rdo("SET", "USER:"+adminUsername, "")
+	rdo("SET", "USER:"+adminUsername, adminPassword)
 	rdo("SET", "root", adminUsername)
 	rdo("SADD", "ADMINS", adminUsername)
 	http.HandleFunc("/", h)
