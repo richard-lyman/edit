@@ -7,7 +7,7 @@
  * Accounts can be added or removed easily and pages can be locked from future changes
  * Files can be uploaded and linked inline
  * Output is a static page
- * ~~Templates->SSIs~~
+ * Requires Redis
  * ACE editor
  * A wiki
 
