@@ -39,3 +39,9 @@
  1. Self-sign your CSR with your own private key:
   * ```openssl x509 -req -days 3650 -in cert.csr -signkey key.pem -out cert.pem```
 
+### Extra
+ * There is an admin page at /admin
+ * There is a Table-of-Contents at /toc
+ * URLs must all be lowercase a-z or '/' or '_'
+ * Ctrl-e will toggle the edit panel
+
