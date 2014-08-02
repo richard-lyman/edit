@@ -31,6 +31,12 @@
  1. Press Ctrl-s
  1. Click on the Lock icon to let someone else edit the page, or wait for the lock to timeout
 
+### Extra
+ * There is an admin page at /admin
+ * There is a Table-of-Contents at /toc
+ * URLs must all be lowercase a-z or '/' or '_'
+ * Ctrl-e will toggle the edit panel
+
 ### Generating a cert.pem and key.pem
  1. Generate a new unencrypted rsa private key in PEM format:
   * ```openssl genrsa -out key.pem 1024```
@@ -38,10 +44,4 @@
   * ```openssl req -new -key key.pem -out cert.csr```
  1. Self-sign your CSR with your own private key:
   * ```openssl x509 -req -days 3650 -in cert.csr -signkey key.pem -out cert.pem```
-
-### Extra
- * There is an admin page at /admin
- * There is a Table-of-Contents at /toc
- * URLs must all be lowercase a-z or '/' or '_'
- * Ctrl-e will toggle the edit panel
 
