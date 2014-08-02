@@ -11,6 +11,10 @@
  * ACE editor
  * A wiki
 
+### PreReqs
+ * A reachable Redis Server
+ * A usable pandoc installed
+
 ### Running
  1. ```git clone https://github.com/richard-lyman/edit.git```
  1. Tweak the config (you must at least provide the admin password)
