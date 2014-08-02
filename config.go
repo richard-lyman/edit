@@ -33,5 +33,6 @@ var adminPassword = ""
 var hostAndPort = "localhost:1234"
 var webroot = "webroot"
 var rootTitle = "An Editable Site"
+var redisHostAndPort = "localhost:6379"
 var processCommand = "./process.sh"
 
