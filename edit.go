@@ -170,8 +170,8 @@ func main() {
 	http.HandleFunc("/lock", l)
 	http.HandleFunc("/unlock", ul)
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
-	log.Println("Listening on 1443")
-	log.Fatal(http.ListenAndServeTLS(":1443", "cert.pem", "key.pem", authd(http.DefaultServeMux)))
+	log.Println("Listening on "+hostAndPort)
+	log.Fatal(http.ListenAndServeTLS(hostAndPort, "cert.pem", "key.pem", authd(http.DefaultServeMux)))
 }
 
 func authd(h http.Handler) http.Handler {

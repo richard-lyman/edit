@@ -30,8 +30,8 @@ package main
 
 var adminUsername = "admin"
 var adminPassword = ""
+var hostAndPort = "localhost:1234"
 var webroot = "webroot"
-
 var rootTitle = "An Editable Site"
 var processCommand = "./process.sh"
 
