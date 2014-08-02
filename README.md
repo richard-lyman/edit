@@ -14,6 +14,7 @@
 ### Running
  1. ```git clone https://github.com/richard-lyman/edit.git```
  1. Tweak the config (you must at least provide the admin password)
+ 1. ```go get ./...```
  1. ```go build```
  1. Provide or generate a cert.pem and key.pem (see below)
  1. ```./edit``` or ```sudo ./edit```
