@@ -51,6 +51,35 @@ import (
 	"time"
 )
 
+func main() {
+	if len(adminPassword) == 0 {
+		panic("The admin password supplied in config.go at pre-compile time must be longer that 0 characters")
+	}
+	err := os.Mkdir(webroot, 0700)
+	if os.IsPermission(err) {
+		panic(fmt.Sprintf("Unable to create required webroot directory: '%s'", webroot))
+	}
+	pool = newPool()
+	_, err = rdo("PING")
+	if err != nil {
+		panic(fmt.Sprintf("A working connection to a Redis instance is required: %s - You may need to tweak the config.go file prior to building.", err))
+	}
+	rdo("SET", "USER:"+adminUsername, adminPassword)
+	rdo("SET", "root", adminUsername)
+	rdo("SADD", "ADMINS", adminUsername)
+	http.HandleFunc("/", h)
+	http.HandleFunc("/toc", t)
+	http.HandleFunc("/admin", a)
+	http.HandleFunc("/admin/remove", r)
+	http.HandleFunc("/user", u)
+	http.HandleFunc("/file/", f)
+	http.HandleFunc("/lock", l)
+	http.HandleFunc("/unlock", ul)
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
+	log.Println("Listening on "+hostAndPort)
+	log.Fatal(http.ListenAndServeTLS(hostAndPort, "cert.pem", "key.pem", authd(http.DefaultServeMux)))
+}
+
 var hashKey = securecookie.GenerateRandomKey(32)
 var blockKey = securecookie.GenerateRandomKey(16)
 var s = securecookie.New(hashKey, blockKey)
@@ -144,35 +173,6 @@ func rdo(command string, args ...interface{}) (interface{}, error) {
 }
 
 var pageLockKey = "an internal key that should never be used as a users name"
-
-func main() {
-	if len(adminPassword) == 0 {
-		panic("The admin password supplied in config.go at pre-compile time must be longer that 0 characters")
-	}
-	err := os.Mkdir(webroot, 0700)
-	if os.IsPermission(err) {
-		panic(fmt.Sprintf("Unable to create required webroot directory: '%s'", webroot))
-	}
-	pool = newPool()
-	_, err = rdo("PING")
-	if err != nil {
-		panic(fmt.Sprintf("A working connection to a Redis instance is required: %s - You may need to tweak the config.go file prior to building.", err))
-	}
-	rdo("SET", "USER:"+adminUsername, adminPassword)
-	rdo("SET", "root", adminUsername)
-	rdo("SADD", "ADMINS", adminUsername)
-	http.HandleFunc("/", h)
-	http.HandleFunc("/toc", t)
-	http.HandleFunc("/admin", a)
-	http.HandleFunc("/admin/remove", r)
-	http.HandleFunc("/user", u)
-	http.HandleFunc("/file/", f)
-	http.HandleFunc("/lock", l)
-	http.HandleFunc("/unlock", ul)
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
-	log.Println("Listening on "+hostAndPort)
-	log.Fatal(http.ListenAndServeTLS(hostAndPort, "cert.pem", "key.pem", authd(http.DefaultServeMux)))
-}
 
 func authd(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
