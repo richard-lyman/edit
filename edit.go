@@ -99,6 +99,14 @@ func getUser(r *http.Request) string {
 	return value["u"]
 }
 
+func notDefaultPassword(u string) bool {
+	p, err := redis.String(rdo("GET", "USER:"+u))
+	if err == nil && p != "password" {
+		return true
+	}
+	return false
+}
+
 func authdUser(w http.ResponseWriter, r *http.Request) (string, error) {
 	if needsAuth(w, r) {
 		return "", errors.New("Authentication needed")
@@ -483,8 +491,8 @@ func a(w http.ResponseWriter, r *http.Request) {
 			log.Println("Failed to grant admin:", err)
 		} else {
 			log.Println("Granting admin to user:", b)
-			if _, err := rdo("GET", "USER:"+b); err != nil {
-				log.Println("Failed to grant admin to user, since user does not exist:", err)
+			if p, err := redis.String(rdo("GET", "USER:"+b)); err != nil || p == "password" {
+				log.Println("Failed to grant admin to user, since user does not exist or their password is still the default:", err)
 			} else {
 				rdo("SADD", "ADMINS", b)
 			}
@@ -510,7 +518,9 @@ func h(w http.ResponseWriter, r *http.Request) {
 	} else if r.Method == "POST" {
 		postPage(w, r, u)
 	} else if r.Method == "PUT" {
-		putPage(w, r, u)
+		if notDefaultPassword(u) {
+			putPage(w, r, u)
+		}
 	} else {
 		fBase := filepath.Base(r.URL.Path)
 		if fBase == "shell.js" || fBase == "keymaster.js" {
