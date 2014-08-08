@@ -616,7 +616,7 @@ func putPage(w http.ResponseWriter, r *http.Request, u string) {
 				lockingUser, err := redis.String(rdo("GET", "PAGE:"+pageToLock))
 				if err != nil {
 					log.Println("Unable to get user for locked page:", pageToLock, err)
-					fmt.Fprint(w, `{"editable":false}`)
+					fmt.Fprint(w, `{"editable":false, "reason":"Page is already locked by another user"}`)
 				} else {
 					if lockingUser == u {
 						fmt.Fprint(w, `{"editable":true}`)
@@ -638,24 +638,24 @@ func putPageWithoutLock(w http.ResponseWriter, r *http.Request, u string, pageTo
 	alreadyLocking, err := redis.Bool(rdo("EXISTS", "LOCK:"+u))
 	if err != nil {
 		log.Println("Unable to verify if user already has a page locked")
-		fmt.Fprint(w, `{"editable":false}`)
+		fmt.Fprint(w, `{"editable":false, "reason":"Unable to verify if the page is locked"}`)
 	} else if alreadyLocking {
 		lockedPage, err := redis.String(rdo("GET", "LOCK:"+u))
 		if err != nil {
 			log.Println("Unable to get locked page for user:", u, err)
-			fmt.Fprint(w, `{"editable":false}`)
+			fmt.Fprint(w, `{"editable":false, "reason":"Unable to locate the page currently locked by the user"}`)
 		} else {
 			if lockedPage == pageToLock {
 				fmt.Fprint(w, `{"editable":true}`)
 			} else {
-				fmt.Fprint(w, `{"editable":false, "reason":"Your lock is being used on: "`+lockedPage+`}`)
+				fmt.Fprint(w, `{"editable":false, "reason":"Your lock is being used on: `+lockedPage+`"}`)
 			}
 		}
 	} else {
 		lockObtained, err := redis.Bool(rdo("SETNX", "PAGE:"+pageToLock, u))
 		if err != nil {
 			log.Println("Failed to get lock on page where lock does not exist:", pageToLock, err)
-			fmt.Fprint(w, `{"editable":false}`)
+			fmt.Fprint(w, `{"editable":false, "reason":"Failed to obtain lock on page"}`)
 		} else {
 			if lockObtained {
 				rdo("SET", "LOCK:"+u, pageToLock)
@@ -663,7 +663,7 @@ func putPageWithoutLock(w http.ResponseWriter, r *http.Request, u string, pageTo
 				rdo("EXPIRE", "LOCK:"+u, pageLockTTL)
 				fmt.Fprint(w, `{"editable":true}`)
 			} else {
-				fmt.Fprint(w, `{"editable":false}`)
+				fmt.Fprint(w, `{"editable":false, "reason":"Unable to obtain lock on page"}`)
 			}
 		}
 	}
