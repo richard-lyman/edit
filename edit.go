@@ -52,6 +52,8 @@ import (
 )
 
 func main() {
+	tmpDuration, _ := time.ParseDuration("8h")
+	pageLockTTL = tmpDuration.Seconds()
 	if len(adminPassword) == 0 {
 		panic("The admin password supplied in config.go at pre-compile time must be longer that 0 characters")
 	}
@@ -76,7 +78,7 @@ func main() {
 	http.HandleFunc("/lock", l)
 	http.HandleFunc("/unlock", ul)
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
-	log.Println("Listening on "+hostAndPort)
+	log.Println("Listening on " + hostAndPort)
 	log.Fatal(http.ListenAndServeTLS(hostAndPort, "cert.pem", "key.pem", authd(http.DefaultServeMux)))
 }
 
@@ -181,6 +183,7 @@ func rdo(command string, args ...interface{}) (interface{}, error) {
 }
 
 var pageLockKey = "an internal key that should never be used as a users name"
+var pageLockTTL float64
 
 func authd(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -545,8 +548,8 @@ func postPage(w http.ResponseWriter, r *http.Request, u string) {
 	if err != nil {
 		log.Println("Failed to process POST on root:", err)
 	} else {
-		rdo("EXPIRE", "PAGE:"+r.URL.Path, 600)
-		rdo("EXPIRE", "LOCK:"+u, 600)
+		rdo("EXPIRE", "PAGE:"+r.URL.Path, pageLockTTL)
+		rdo("EXPIRE", "LOCK:"+u, pageLockTTL)
 		var pandocOut bytes.Buffer
 		c := exec.Command(processCommand)
 		c.Stdin = bytes.NewBuffer([]byte(b))
@@ -656,8 +659,8 @@ func putPageWithoutLock(w http.ResponseWriter, r *http.Request, u string, pageTo
 		} else {
 			if lockObtained {
 				rdo("SET", "LOCK:"+u, pageToLock)
-				rdo("EXPIRE", "PAGE:"+pageToLock, 600)
-				rdo("EXPIRE", "LOCK:"+u, 600)
+				rdo("EXPIRE", "PAGE:"+pageToLock, pageLockTTL)
+				rdo("EXPIRE", "LOCK:"+u, pageLockTTL)
 				fmt.Fprint(w, `{"editable":true}`)
 			} else {
 				fmt.Fprint(w, `{"editable":false}`)
