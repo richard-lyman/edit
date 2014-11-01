@@ -14,6 +14,9 @@
 ### PreReqs
  * A reachable Redis Server
  * A usable pandoc installed
+  * sudo apt-get install haskell-platform
+  * cabal update
+  * cabal install pandoc
 
 ### Running
  1. ```git clone https://github.com/richard-lyman/edit.git```
