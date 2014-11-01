@@ -13,18 +13,18 @@
 
 ### PreReqs
  * A reachable Redis Server
-  * wget http://download.redis.io/redis-stable.tar.gz
-  * tar xzf redis-stable.tar.gz
-  * cd redis-stable
-  * make
-  * sudo make install
-  * cd utils/
-  * sudo ./install_server.sh
-  * sudo /etc/init.d/redis_6379 start
+  1. wget http://download.redis.io/redis-stable.tar.gz
+  1. tar xzf redis-stable.tar.gz
+  1. cd redis-stable
+  1. make
+  1. sudo make install
+  1. cd utils/
+  1. sudo ./install_server.sh
+  1. sudo /etc/init.d/redis_6379 start
  * A usable pandoc installed
-  * sudo apt-get install haskell-platform
-  * cabal update
-  * cabal install pandoc
+  1. sudo apt-get install haskell-platform
+  1. cabal update
+  1. cabal install pandoc
 
 ### Running
  1. ```git clone https://github.com/richard-lyman/edit.git```
