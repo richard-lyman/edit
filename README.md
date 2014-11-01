@@ -13,6 +13,14 @@
 
 ### PreReqs
  * A reachable Redis Server
+  * wget http://download.redis.io/releases/redis-2.8.17.tar.gz
+  * tar xzf redis-2.8.17.tar.gz
+  * cd redis-2.8.17/
+  * make
+  * sudo make install
+  * cd utils/
+  * sudo ./install_server.sh
+  * sudo /etc/init.d/redis_6379 start
  * A usable pandoc installed
   * sudo apt-get install haskell-platform
   * cabal update
