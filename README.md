@@ -56,5 +56,7 @@
  1. Self-sign your CSR with your own private key:
   * ```openssl x509 -req -days 3650 -in cert.csr -signkey key.pem -out cert.pem```
 
-(LICENSE)^1[You can find the license in the LICENSE file.]
+[LICENSE][]
+
+[LICENSE]: You can find the license in the LICENSE file.
 
