@@ -29,7 +29,7 @@
 
 echo "Creating release..."
 
-rm -rf tmp
+rm -rf tmp/
 
 mkdir -p tmp/edit/webroot
 
@@ -43,6 +43,12 @@ cp process.sh tmp/edit
 
 chmod -R go-wx tmp/edit
 
-#rm -rf tmp
+cd tmp
+tar zcf edit.tgz edit
+mv edit.tgz ..
+
+cd ..
+chmod -R go+wx tmp/
+rm -rf tmp/
 
 echo "Done"
