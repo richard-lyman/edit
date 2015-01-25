@@ -30,6 +30,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -79,7 +80,9 @@ func main() {
 	http.HandleFunc("/unlock", ul)
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
 	log.Println("Listening on " + hostAndPort)
-	log.Fatal(http.ListenAndServeTLS(hostAndPort, "cert.pem", "key.pem", authd(http.DefaultServeMux)))
+	config := &tls.Config{MinVersion: tls.VersionTLS10}
+	server := &http.Server{Addr: hostAndPort, Handler: authd(http.DefaultServeMux), TLSConfig: config}
+	log.Fatal(server.ListenAndServeTLS("cert.pem", "key.pem"))
 }
 
 var hashKey = securecookie.GenerateRandomKey(32)
@@ -550,11 +553,11 @@ func postPage(w http.ResponseWriter, r *http.Request, u string) {
 	} else {
 		rdo("EXPIRE", "PAGE:"+r.URL.Path, pageLockTTL)
 		rdo("EXPIRE", "LOCK:"+u, pageLockTTL)
-		var pandocOut bytes.Buffer
+		var cmarkOut bytes.Buffer
 		c := exec.Command(processCommand)
 		c.Stdin = bytes.NewBuffer([]byte(b))
-		c.Stdout = &pandocOut
-		c.Stderr = &pandocOut
+		c.Stdout = &cmarkOut
+		c.Stderr = &cmarkOut
 		if err := c.Run(); err != nil {
 			log.Println("Run failed:", err)
 		} else {
@@ -581,10 +584,10 @@ func postPage(w http.ResponseWriter, r *http.Request, u string) {
 				fmt.Fprint(w, "Failed to open file")
 				return
 			}
-			pandocOut.WriteTo(f)
+			cmarkOut.WriteTo(f)
 			err = f.Close()
 			if err != nil {
-				panic("Unable to close pandoc out file:" + err.Error())
+				panic("Unable to close cmark out file:" + err.Error())
 			} else {
 				f, err := os.Open(path)
 				if err != nil {

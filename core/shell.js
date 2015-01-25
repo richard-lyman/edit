@@ -35,7 +35,7 @@ function save(){
 	$.post(window.location.pathname, e.getValue()) .done(function(d){ $("#result").html(d); }) .fail(function(){ console.log("Failed"); });
 }
 function toggle(){ $("#editor").scope().toggle(); }
-function help(){ window.open("http://johnmacfarlane.net/pandoc/demo/example9/pandocs-markdown.html"); }
+function help(){ window.open("http://spec.commonmark.org/0.17/"); }
 key('ctrl+s', function(){ save(); return false });
 key('ctrl+e', function(){ toggle(); return false });
 key('ctrl+h', function(){ help(); return false });

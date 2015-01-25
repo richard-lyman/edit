@@ -1,7 +1,7 @@
 ### Overview
  * A wiki
  * Minimalist
- * Requires Pandoc
+ * Requires cmark
  * Editing a page locks it
  * Users can only have one locked page at a time
  * Accounts can be added or removed easily and pages can be locked from future changes
@@ -21,10 +21,12 @@
   1. cd utils/
   1. sudo ./install_server.sh
   1. sudo /etc/init.d/redis_6379 start
- * A usable pandoc installed
-  1. sudo apt-get install haskell-platform
-  1. cabal update
-  1. cabal install pandoc
+ * A usable cmark installed
+  1. sudo apt-get install cmake
+  1. git clone https://github.com/jgm/cmark.git
+  1. cd cmark
+  1. make
+  1. sudo make install
 
 ### Running
  1. ```git clone https://github.com/richard-lyman/edit.git```
@@ -32,20 +34,21 @@
  1. ```go get ./...```
  1. ```go build```
  1. Provide or generate a cert.pem and key.pem (see below)
- 1. ```./edit``` or ```sudo ./edit```
+ 1. ```./edit```
+  * If you want to run on a privileged port, I recommend using [CAP_NET_BIND_SERVICE](http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l/414258#414258) instead of sudo
 
 ### Using
  1. Open a URL
  1. Login using 'admin' and the password you provided above or some other account
  1. Press Ctrl-e
- 1. Enter [Pandoc Markdown](http://johnmacfarlane.net/pandoc/demo/example9/pandocs-markdown.html)
+ 1. Enter [CommonMark](http://commonmark.org/)
  1. Press Ctrl-s
  1. Click on the Lock icon to let someone else edit the page, or wait for the lock to timeout
 
 ### Extra
  * There is an admin page at /admin
  * There is a Table-of-Contents at /toc
- * URLs must all be lowercase a-z or '/' or '_'
+ * URL Paths are only allowed to contain lowercase a-z or '/' or '_'
  * Ctrl-e will toggle the edit panel
 
 ### Generating a cert.pem and key.pem

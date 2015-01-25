@@ -27,5 +27,5 @@
 # WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-pandoc --to=html5
+cmark --to html
 
