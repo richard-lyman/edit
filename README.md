@@ -21,7 +21,7 @@
   1. cd utils/
   1. sudo ./install_server.sh
   1. sudo /etc/init.d/redis_6379 start
- * A usable cmark installed
+ * A usable cmark installed (*Note: cmake and cmark are different programs*)
   1. sudo apt-get install cmake
   1. git clone https://github.com/jgm/cmark.git
   1. cd cmark
