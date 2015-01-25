@@ -30,7 +30,7 @@
 
 ### Running
  1. ```git clone https://github.com/richard-lyman/edit.git```
- 1. Tweak the config (you must at least provide the admin password)
+ 1. Tweak the config
  1. ```go get ./...```
  1. ```go build```
  1. Provide or generate a cert.pem and key.pem (see below)
@@ -39,13 +39,14 @@
 
 ### Using
  1. Open a URL
- 1. Login using 'admin' and the password you provided above or some other account
+ 1. Login using a valid account. The default is 'admin'/'password' - you can not do anything without changing this password (see below)
  1. Press Ctrl-e
  1. Enter [CommonMark](http://commonmark.org/)
  1. Press Ctrl-s
  1. Click on the Lock icon to let someone else edit the page, or wait for the lock to timeout
 
 ### Extra
+ * Change your password by clicking on the menu button in the upper-right corner
  * There is an admin page at /admin
  * There is a Table-of-Contents at /toc
  * URL Paths are only allowed to contain lowercase a-z or '/' or '_'

@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"github.com/gorilla/securecookie"
+	"golang.org/x/crypto/bcrypt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -55,9 +56,6 @@ import (
 func main() {
 	tmpDuration, _ := time.ParseDuration("8h")
 	pageLockTTL = tmpDuration.Seconds()
-	if len(adminPassword) == 0 {
-		panic("The admin password supplied in config.go at pre-compile time must be longer that 0 characters")
-	}
 	err := os.Mkdir(webroot, 0700)
 	if os.IsPermission(err) {
 		panic(fmt.Sprintf("Unable to create required webroot directory: '%s'", webroot))
@@ -67,9 +65,16 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("A working connection to a Redis instance is required: %s - You may need to tweak the config.go file prior to building.", err))
 	}
-	rdo("SET", "USER:"+adminUsername, adminPassword)
-	rdo("SET", "root", adminUsername)
-	rdo("SADD", "ADMINS", adminUsername)
+	if exists, err := redis.Bool(rdo("EXISTS", "USER:admin")); err == nil && !exists {
+		log.Println("Creating default admin account, since it doesn't currently exist. ('admin'/'password')")
+		bp, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to generate bcrypt from password to create admin account: %s", err))
+		}
+		rdo("SET", "USER:admin", bp)
+		rdo("SET", "root", "admin")
+		rdo("SADD", "ADMINS", "admin")
+	}
 	http.HandleFunc("/", h)
 	http.HandleFunc("/toc", t)
 	http.HandleFunc("/admin", a)
@@ -105,10 +110,11 @@ func getUser(r *http.Request) string {
 }
 
 func notDefaultPassword(u string) bool {
-	p, err := redis.String(rdo("GET", "USER:"+u))
-	if err == nil && p != "password" {
+	rp, err := redis.String(rdo("GET", "USER:"+u))
+	if err == nil && bcrypt.CompareHashAndPassword([]byte(rp), []byte("password")) != nil {
 		return true
 	}
+	log.Println("The given user is using a default password!")
 	return false
 }
 
@@ -155,7 +161,7 @@ func needsAuth(w http.ResponseWriter, r *http.Request) bool {
 				if err != nil {
 					log.Println("Attempt to edit with a non-existent account:", u, err)
 				} else {
-					if rp == p {
+					if bcrypt.CompareHashAndPassword([]byte(rp), []byte(p)) == nil {
 						setCookie(w, r, map[string]string{"u": u})
 						return false
 					}
@@ -190,8 +196,22 @@ var pageLockTTL float64
 
 func authd(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := authdUser(w, r); err == nil {
-			h.ServeHTTP(w, r)
+		if u, err := authdUser(w, r); err == nil {
+			rp, err := redis.String(rdo("GET", "USER:"+u))
+			if err != nil {
+				return
+			}
+			isDefaultPassword := bcrypt.CompareHashAndPassword([]byte(rp), []byte("password")) == nil
+			if r.Method == "GET" || !isDefaultPassword {
+				log.Println("Serving:", r.URL.Path)
+				h.ServeHTTP(w, r)
+			} else {
+				if r.Method == "PUT" && r.URL.Path == "/user" {
+					h.ServeHTTP(w, r)
+				} else {
+					log.Println("Ignoring action since password is still default: ", r)
+				}
+			}
 		} else {
 			w.Header().Set("WWW-Authenticate", `Basic realm="edit"`)
 			w.WriteHeader(http.StatusUnauthorized)
@@ -443,7 +463,11 @@ func u(w http.ResponseWriter, r *http.Request) {
 		log.Println("Failed to change password:", err)
 	} else {
 		log.Println("Changing password for user:", u)
-		if _, err = rdo("SET", "USER:"+u, j["password"]); err != nil {
+		bp, err := bcrypt.GenerateFromPassword([]byte(j["password"]), bcrypt.DefaultCost)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to generate bcrypt from password to change password: %s", err))
+		}
+		if _, err = rdo("SET", "USER:"+u, bp); err != nil {
 			log.Println("Failed to change password:", err)
 		}
 	}
@@ -486,7 +510,11 @@ func a(w http.ResponseWriter, r *http.Request) {
 			log.Println("Failed to add a user:", err)
 		} else {
 			log.Println("Adding user:", b)
-			added, err := redis.Int(rdo("SETNX", "USER:"+b, "password"))
+			bp, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+			if err != nil {
+				panic(fmt.Sprintf("Unable to generate bcrypt from password for adding a user: %s", err))
+			}
+			added, err := redis.Int(rdo("SETNX", "USER:"+b, bp))
 			if err != nil || added != 1 {
 				log.Println("Failed to add user:", err)
 			}
@@ -497,7 +525,7 @@ func a(w http.ResponseWriter, r *http.Request) {
 			log.Println("Failed to grant admin:", err)
 		} else {
 			log.Println("Granting admin to user:", b)
-			if p, err := redis.String(rdo("GET", "USER:"+b)); err != nil || p == "password" {
+			if rp, err := redis.String(rdo("GET", "USER:"+b)); err != nil || bcrypt.CompareHashAndPassword([]byte(rp), []byte("password")) == nil {
 				log.Println("Failed to grant admin to user, since user does not exist or their password is still the default:", err)
 			} else {
 				rdo("SADD", "ADMINS", b)
@@ -526,6 +554,8 @@ func h(w http.ResponseWriter, r *http.Request) {
 	} else if r.Method == "PUT" {
 		if notDefaultPassword(u) {
 			putPage(w, r, u)
+		} else {
+			log.Printf("Ignoring attempt to act with default password! (user: %s)\n", u)
 		}
 	} else {
 		fBase := filepath.Base(r.URL.Path)
