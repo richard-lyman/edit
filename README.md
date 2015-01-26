@@ -29,17 +29,16 @@
   1. sudo make install
 
 ### Running
- 1. ```git clone https://github.com/richard-lyman/edit.git```
- 1. Tweak the config
- 1. ```go get ./...```
- 1. ```go build```
+ 1. Download an OS+Architecture appropriate release
+ 1. Extract and run with the 'gen' flag to create a sample config file (in Linux you might run: ```./edit -gen```)
+ 1. Tweak the config.json file as needed
  1. Provide or generate a cert.pem and key.pem (see below)
- 1. ```./edit```
+ 1. Run the edit binary (in Linux you might run: ```./edit```)
   * If you want to run on a privileged port, I recommend using [CAP_NET_BIND_SERVICE](http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l/414258#414258) instead of sudo
 
 ### Using
  1. Open a URL
- 1. Login using a valid account. The default is 'admin'/'password' - you can not do anything without changing this password (see below)
+ 1. Login using a valid account. The default is 'admin'/'password' - you can not do anything (other than change the password) without changing this password (see below)
  1. Press Ctrl-e
  1. Enter [CommonMark](http://commonmark.org/)
  1. Press Ctrl-s

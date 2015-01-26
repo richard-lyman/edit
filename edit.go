@@ -34,6 +34,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"github.com/gorilla/securecookie"
@@ -53,12 +54,53 @@ import (
 	"time"
 )
 
+var generateConfig = flag.Bool("gen", false, "Generates a valid config file, assuming a default local install of Redis.")
+
+type configStruct struct {
+	HostAndPort      string `json:"host_and_port"`
+	Webroot          string `json:"webroot"`
+	RootTitle        string `json:"root_title"`
+	RedisHostAndPort string `json:"redis_host_and_port"`
+	ProcessCommand   string `json:"process_command"`
+}
+
+var config = configStruct{}
+
+func getConfig() {
+	f, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		log.Fatalln("Unable to read config file:", err)
+	}
+	if json.Unmarshal(f, &config) != nil {
+		log.Fatalln("Unable to unmarshal config file:", err)
+	}
+	log.Printf("Using config: %#v\n", config)
+}
+
 func main() {
+	flag.Parse()
+	if *generateConfig {
+		if _, err := os.Stat("config.json"); os.IsNotExist(err) {
+			log.Println("Generating config...")
+                        ioutil.WriteFile("config.json", []byte(`{
+        "host_and_port":":1234",
+        "webroot":"webroot",
+        "root_title":"An Editable Site",
+        "redis_host_and_port":"localhost:6379",
+        "process_command":"./process.sh"
+}
+`), 0600)
+		} else {
+			log.Println("Config file 'config.json' already exists - we will not overwrite it.")
+		}
+		os.Exit(0)
+	}
+	getConfig()
 	tmpDuration, _ := time.ParseDuration("8h")
 	pageLockTTL = tmpDuration.Seconds()
-	err := os.Mkdir(webroot, 0700)
+	err := os.Mkdir(config.Webroot, 0700)
 	if os.IsPermission(err) {
-		panic(fmt.Sprintf("Unable to create required webroot directory: '%s'", webroot))
+		panic(fmt.Sprintf("Unable to create required webroot directory: '%s'", config.Webroot))
 	}
 	pool = newPool()
 	_, err = rdo("PING")
@@ -84,9 +126,9 @@ func main() {
 	http.HandleFunc("/lock", l)
 	http.HandleFunc("/unlock", ul)
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
-	log.Println("Listening on " + hostAndPort)
-	config := &tls.Config{MinVersion: tls.VersionTLS10}
-	server := &http.Server{Addr: hostAndPort, Handler: authd(http.DefaultServeMux), TLSConfig: config}
+	log.Println("Listening on " + config.HostAndPort)
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
+	server := &http.Server{Addr: config.HostAndPort, Handler: authd(http.DefaultServeMux), TLSConfig: tlsConfig}
 	log.Fatal(server.ListenAndServeTLS("cert.pem", "key.pem"))
 }
 
@@ -178,7 +220,7 @@ func newPool() *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:      3,
 		IdleTimeout:  240 * time.Second,
-		Dial:         func() (redis.Conn, error) { return redis.Dial("tcp", redisHostAndPort) },
+		Dial:         func() (redis.Conn, error) { return redis.Dial("tcp", config.RedisHostAndPort) },
 		TestOnBorrow: func(c redis.Conn, t time.Time) error { _, err := c.Do("PING"); return err },
 	}
 }
@@ -203,7 +245,6 @@ func authd(h http.Handler) http.Handler {
 			}
 			isDefaultPassword := bcrypt.CompareHashAndPassword([]byte(rp), []byte("password")) == nil
 			if r.Method == "GET" || !isDefaultPassword {
-				log.Println("Serving:", r.URL.Path)
 				h.ServeHTTP(w, r)
 			} else {
 				if r.Method == "PUT" && r.URL.Path == "/user" {
@@ -320,7 +361,7 @@ func t(w http.ResponseWriter, r *http.Request) {
 		}
 		var handler func(string, os.FileInfo, bool) error
 		handler = func(p string, i os.FileInfo, lastEntry bool) error {
-			np, err := filepath.Rel(webroot, p)
+			np, err := filepath.Rel(config.Webroot, p)
 			if err != nil {
 				log.Println("Failed to resolve relative path:", p)
 				return err
@@ -348,7 +389,7 @@ func t(w http.ResponseWriter, r *http.Request) {
 			}
 			return nil
 		}
-		processDir(webroot, filter, handler)
+		processDir(config.Webroot, filter, handler)
 		fmt.Fprint(w, `</div>`)
 	}
 }
@@ -584,7 +625,7 @@ func postPage(w http.ResponseWriter, r *http.Request, u string) {
 		rdo("EXPIRE", "PAGE:"+r.URL.Path, pageLockTTL)
 		rdo("EXPIRE", "LOCK:"+u, pageLockTTL)
 		var cmarkOut bytes.Buffer
-		c := exec.Command(processCommand)
+		c := exec.Command(config.ProcessCommand)
 		c.Stdin = bytes.NewBuffer([]byte(b))
 		c.Stdout = &cmarkOut
 		c.Stderr = &cmarkOut
@@ -757,11 +798,11 @@ func servePath(w http.ResponseWriter, path string) {
 }
 
 func pathToTitle(path string) string {
-	path = strings.TrimSuffix(strings.TrimPrefix(path, webroot), "index.html")
+	path = strings.TrimSuffix(strings.TrimPrefix(path, config.Webroot), "index.html")
 	if path == "/" {
-		return rootTitle
+		return config.RootTitle
 	} else {
-		return rootTitle + " - " + strings.Title(strings.TrimSpace(strings.Join(strings.Split(path, "/"), " ")))
+		return config.RootTitle + " - " + strings.Title(strings.TrimSpace(strings.Join(strings.Split(path, "/"), " ")))
 	}
 }
 
@@ -788,7 +829,7 @@ func urlToPath(u *url.URL) (string, error) {
 		return "", errors.New("URL Paths must not end with index.html or index.html.src")
 	}
 	if strings.HasPrefix(page, "/file") {
-		fileRef := filepath.Join(webroot, strings.TrimPrefix(page, "/file"))
+		fileRef := filepath.Join(config.Webroot, strings.TrimPrefix(page, "/file"))
 		if _, err := os.Stat(fileRef); !os.IsNotExist(err) {
 			return fileRef, nil
 		}
@@ -807,6 +848,6 @@ func urlToPath(u *url.URL) (string, error) {
 	} else {
 		page = page + "/index.html"
 	}
-	path := filepath.Join(webroot, page)
+	path := filepath.Join(config.Webroot, page)
 	return path, nil
 }

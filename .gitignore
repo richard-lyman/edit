@@ -5,3 +5,4 @@ key.pem
 webroot
 tmp
 edit.tgz
+config.json
