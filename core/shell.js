@@ -36,12 +36,20 @@ function save(){
 }
 function toggle(){ $("#editor").scope().toggle(); }
 function help(){ window.open("http://spec.commonmark.org/0.17/"); }
+function actOnWord(){
+        var p = e.getCursorPosition();
+        var s = e.getSession();
+        console.log(s.getTextRange(s.getWordRange(p.row, p.column)));
+
+}
 key('ctrl+s', function(){ save(); return false });
 key('ctrl+e', function(){ toggle(); return false });
 key('ctrl+h', function(){ help(); return false });
+key('ctrl+g', function(){ actOnWord(); return false });
 e.commands.addCommand({ name: 'save', bindKey: { win: 'Ctrl-S', sender: 'editor|cli' }, exec: save });
 e.commands.addCommand({ name: 'toggle', bindKey: { win: 'Ctrl-E', sender: 'editor|cli' }, exec: toggle });
 e.commands.addCommand({ name: 'help', bindKey: { win: 'Ctrl-H', sender: 'editor|cli' }, exec: help });
+e.commands.addCommand({ name: 'actOnWord', bindKey: { win: 'Ctrl-G', sender: 'editor|cli' }, exec: actOnWord });
 e.commands.removeCommands([
 "gotoline", "find", "replace", "replaceAll",
 ///*"backspace",*/ "blockindent", "blockoutdent", "centerselection", "copylinesdown", "copylinesup", /*"cut",*/ "cut_or_delete",

@@ -30,7 +30,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
+	//"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -82,7 +82,7 @@ func main() {
 	if *generateConfig {
 		if _, err := os.Stat("config.json"); os.IsNotExist(err) {
 			log.Println("Generating config...")
-                        ioutil.WriteFile("config.json", []byte(`{
+			ioutil.WriteFile("config.json", []byte(`{
         "host_and_port":":1234",
         "webroot":"webroot",
         "root_title":"An Editable Site",
@@ -127,9 +127,12 @@ func main() {
 	http.HandleFunc("/unlock", ul)
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
 	log.Println("Listening on " + config.HostAndPort)
-	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
-	server := &http.Server{Addr: config.HostAndPort, Handler: authd(http.DefaultServeMux), TLSConfig: tlsConfig}
-	log.Fatal(server.ListenAndServeTLS("cert.pem", "key.pem"))
+	/*
+		        tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
+			server := &http.Server{Addr: config.HostAndPort, Handler: authd(http.DefaultServeMux), TLSConfig: tlsConfig}
+			log.Fatal(server.ListenAndServeTLS("cert.pem", "key.pem"))
+	*/
+	log.Fatal(http.ListenAndServeTLS(config.HostAndPort, "cert.pem", "key.pem", authd(http.DefaultServeMux)))
 }
 
 var hashKey = securecookie.GenerateRandomKey(32)

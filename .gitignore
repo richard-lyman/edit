@@ -2,7 +2,7 @@ edit
 cert.pem
 cert.csr
 key.pem
-webroot
+webroot/*
 tmp
 edit.tgz
 config.json
