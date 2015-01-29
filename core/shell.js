@@ -39,8 +39,7 @@ function help(){ window.open("http://spec.commonmark.org/0.17/"); }
 function actOnWord(){
         var p = e.getCursorPosition();
         var s = e.getSession();
-        console.log(s.getTextRange(s.getWordRange(p.row, p.column)));
-
+        try { wordAction(s.getTextRange(s.getWordRange(p.row, p.column))); }catch(e){}
 }
 key('ctrl+s', function(){ save(); return false });
 key('ctrl+e', function(){ toggle(); return false });
