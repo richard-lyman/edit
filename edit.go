@@ -31,12 +31,15 @@ package main
 import (
 	"bytes"
 	//"crypto/tls"
+	"archive/tar"
+	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
+	"github.com/gorilla/context"
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
 	"io"
@@ -76,6 +79,10 @@ func getConfig() {
 	}
 	log.Printf("Using config: %#v\n", config)
 }
+
+type userContext int
+
+const userKey userContext = 0
 
 func main() {
 	flag.Parse()
@@ -118,6 +125,7 @@ func main() {
 		rdo("SADD", "ADMINS", "admin")
 	}
 	http.HandleFunc("/", h)
+	http.HandleFunc("/dl", dl)
 	http.HandleFunc("/toc", t)
 	http.HandleFunc("/admin", a)
 	http.HandleFunc("/admin/remove", r)
@@ -132,7 +140,7 @@ func main() {
 			server := &http.Server{Addr: config.HostAndPort, Handler: authd(http.DefaultServeMux), TLSConfig: tlsConfig}
 			log.Fatal(server.ListenAndServeTLS("cert.pem", "key.pem"))
 	*/
-	log.Fatal(http.ListenAndServeTLS(config.HostAndPort, "cert.pem", "key.pem", authd(http.DefaultServeMux)))
+	log.Fatal(http.ListenAndServeTLS(config.HostAndPort, "cert.pem", "key.pem", context.ClearHandler(authd(http.DefaultServeMux))))
 }
 
 var hashKey = securecookie.GenerateRandomKey(32)
@@ -148,6 +156,10 @@ func setCookie(w http.ResponseWriter, r *http.Request, value map[string]string) 
 }
 
 func getUser(r *http.Request) string {
+	tmp := string(context.Get(r, userKey).(string))
+	if len(tmp) > 0 {
+		return tmp
+	}
 	cookie, _ := r.Cookie(cookieName)
 	value := make(map[string]string)
 	s.Decode(cookieName, cookie.Value, &value)
@@ -186,6 +198,7 @@ func needsAuth(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if len(u) > 0 {
 		if hasAuthd, err := redis.Bool(rdo("EXISTS", "USER:"+u)); err == nil && hasAuthd {
+			context.Set(r, userKey, u)
 			return false
 		}
 	}
@@ -208,14 +221,13 @@ func needsAuth(w http.ResponseWriter, r *http.Request) bool {
 				} else {
 					if bcrypt.CompareHashAndPassword([]byte(rp), []byte(p)) == nil {
 						setCookie(w, r, map[string]string{"u": u})
+						context.Set(r, userKey, u)
 						return false
 					}
 				}
 			}
 		}
 	}
-	w.Header().Set("WWW-Authenticate", `Basic realm="edit"`)
-	w.WriteHeader(http.StatusUnauthorized)
 	return true
 }
 
@@ -248,7 +260,7 @@ func authd(h http.Handler) http.Handler {
 			}
 			isDefaultPassword := bcrypt.CompareHashAndPassword([]byte(rp), []byte("password")) == nil
 			if r.Method == "GET" || !isDefaultPassword {
-				h.ServeHTTP(w, r)
+				h.ServeHTTP(w, r) // TODO - the problem is that we'll process requests thinking that our user is in a cookie in this request - and they're not yet...
 			} else {
 				if r.Method == "PUT" && r.URL.Path == "/user" {
 					h.ServeHTTP(w, r)
@@ -347,54 +359,125 @@ func processDir(r string, filter func(string, os.FileInfo) bool, handler func(st
 	return nil
 }
 
-func t(w http.ResponseWriter, r *http.Request) {
+func dl(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		tocFile, err := os.Open("core/toc_style.html")
-		if err != nil {
-			panic("Failed to open the required file 'core/toc_style.html': " + err.Error())
+		w.Header().Set("Content-Disposition", "attachment; filename="+strings.Replace(config.RootTitle, " ", "_", -1)+".tgz")
+		g := gzip.NewWriter(w)
+		defer g.Close()
+		t := tar.NewWriter(g)
+		defer t.Close()
+		addContent := func(name string, size int64, modTime time.Time, content io.Reader) {
+			h := new(tar.Header)
+			h.Name = name
+			h.Size = size
+			h.Mode = 0600
+			h.ModTime = modTime
+			if err := t.WriteHeader(h); err != nil {
+				log.Println("Failed to write tar entry header for download:", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if _, err := io.Copy(t, content); err != nil {
+				log.Println("Failed to copy file to tar writer for download:", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
-		tocStyle, err := ioutil.ReadAll(tocFile)
-		if err != nil {
-			panic("Failed to read contents of the required file 'core/toc_style.html': " + err.Error())
-		}
-		fmt.Fprint(w, string(tocStyle))
-		fmt.Fprint(w, `<div class="toc toc-dir lastEntry"><a href="/">/`+"\n")
-		filter := func(p string, i os.FileInfo) bool {
-			return !strings.HasSuffix(p, "index.html") && !strings.HasSuffix(p, "index.html.src")
-		}
-		var handler func(string, os.FileInfo, bool) error
-		handler = func(p string, i os.FileInfo, lastEntry bool) error {
-			np, err := filepath.Rel(config.Webroot, p)
+		addFile := func(path string) error {
+			file, err := os.Open(path)
 			if err != nil {
-				log.Println("Failed to resolve relative path:", p)
+				log.Println("Failed to open file for download:", err)
+				w.WriteHeader(http.StatusInternalServerError)
 				return err
 			}
-			if np == "." {
-				return nil
-			}
-			dnp := np
-			if len(filepath.Ext(np)) > 0 {
-				dnp = filepath.Base(dnp)
-			}
-			extraClass := ""
-			if lastEntry {
-				extraClass = " lastEntry"
-			}
-			if i.IsDir() {
-				fmt.Fprint(w, `<div class="toc toc-dir`+extraClass+`"><a href="`+np+`">/`+dnp+`</a>`+"\n")
-				err = processDir(p, filter, handler)
-				if err != nil {
-					return err
-				}
-				fmt.Fprint(w, "</div>\n")
-			} else {
-				fmt.Fprint(w, `<div class="toc toc-file`+extraClass+`"><a href="/file/`+np+`">`+dnp+`</a></div>`+"\n")
+			defer file.Close()
+			if stat, err := file.Stat(); err == nil {
+				addContent(path, stat.Size(), stat.ModTime(), file)
 			}
 			return nil
 		}
-		processDir(config.Webroot, filter, handler)
-		fmt.Fprint(w, `</div>`)
+		var tocb bytes.Buffer
+		writeToc(&tocb, true)
+		addContent("webroot/toc.html", int64(tocb.Len()), time.Now(), &tocb)
+		var pDir func(string)
+		pDir = func(d string) {
+			files, err := ioutil.ReadDir(d)
+			if err != nil {
+				log.Panicf("Failed to read root dir: %s", err)
+			}
+			for _, fi := range files {
+				if fi.IsDir() {
+					pDir(filepath.Join(d, fi.Name()))
+				} else {
+					if !strings.HasSuffix(fi.Name(), "src") {
+						if err := addFile(filepath.Join(d, fi.Name())); err != nil {
+							log.Panicf("Failed to add file to TGZ download: %s", err)
+						}
+					}
+				}
+			}
+		}
+		pDir(config.Webroot)
 	}
+}
+
+func t(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		writeToc(w, false)
+	}
+}
+
+func writeToc(w io.Writer, appendIndexHtml bool) {
+	tocFile, err := os.Open("core/toc_style.html")
+	if err != nil {
+		panic("Failed to open the required file 'core/toc_style.html': " + err.Error())
+	}
+	tocStyle, err := ioutil.ReadAll(tocFile)
+	if err != nil {
+		panic("Failed to read contents of the required file 'core/toc_style.html': " + err.Error())
+	}
+	fmt.Fprint(w, `<!DOCTYPE html><html><body>`)
+	fmt.Fprint(w, string(tocStyle))
+	fmt.Fprint(w, `<div class="toc toc-dir lastEntry"><a href="/">/`+"\n")
+	filter := func(p string, i os.FileInfo) bool {
+		return !strings.HasSuffix(p, "index.html") && !strings.HasSuffix(p, "index.html.src")
+	}
+	var handler func(string, os.FileInfo, bool) error
+	handler = func(p string, i os.FileInfo, lastEntry bool) error {
+		np, err := filepath.Rel(config.Webroot, p)
+		if err != nil {
+			log.Println("Failed to resolve relative path:", p)
+			return err
+		}
+		if np == "." {
+			return nil
+		}
+		dnp := np
+		if len(filepath.Ext(np)) > 0 {
+			dnp = filepath.Base(dnp)
+		}
+		extraClass := ""
+		if lastEntry {
+			extraClass = " lastEntry"
+		}
+		if i.IsDir() {
+			if appendIndexHtml {
+				fmt.Fprint(w, `<div class="toc toc-dir`+extraClass+`"><a href="`+np+`/index.html">/`+dnp+`</a>`+"\n")
+			} else {
+				fmt.Fprint(w, `<div class="toc toc-dir`+extraClass+`"><a href="`+np+`">/`+dnp+`</a>`+"\n")
+			}
+			err = processDir(p, filter, handler)
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(w, "</div>\n")
+		} else {
+			fmt.Fprint(w, `<div class="toc toc-file`+extraClass+`"><a href="/file/`+np+`">`+dnp+`</a></div>`+"\n")
+		}
+		return nil
+	}
+	processDir(config.Webroot, filter, handler)
+	fmt.Fprint(w, `</div>`)
 }
 
 func l(w http.ResponseWriter, r *http.Request) {
@@ -513,6 +596,9 @@ func u(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err = rdo("SET", "USER:"+u, bp); err != nil {
 			log.Println("Failed to change password:", err)
+		} else {
+			w.Header().Set("WWW-Authenticate", `Basic realm="edit"`)
+			w.WriteHeader(http.StatusUnauthorized)
 		}
 	}
 }

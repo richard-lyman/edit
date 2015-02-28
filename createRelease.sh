@@ -29,24 +29,19 @@
 
 echo "Creating release..."
 
+go build -o edit
+
 rm -rf tmp/
-
 mkdir -p tmp/edit/webroot
-
 cp -R core tmp/edit
-
-cp config.go tmp/edit
-cp edit.go tmp/edit
 cp LICENSE tmp/edit
 cp README.md tmp/edit
 cp process.sh tmp/edit
-
+cp edit tmp/edit
 chmod -R go-wx tmp/edit
-
 cd tmp
 tar zcf edit.tgz edit
 mv edit.tgz ..
-
 cd ..
 chmod -R go+wx tmp/
 rm -rf tmp/

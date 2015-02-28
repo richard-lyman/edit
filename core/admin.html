@@ -39,6 +39,7 @@ POSSIBILITY OF SUCH DAMAGE.
 		<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 		<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.19/angular.min.js"></script>
 		<script src="/keymaster.js"></script>
+		<div> <button data-ng-click="dl()">Download Site</button> </div>
 		<div>
 			<input type="text" data-ng-model="form.username"></input>
 			<button data-ng-click="addUser()">Add User</button>
@@ -53,8 +54,11 @@ POSSIBILITY OF SUCH DAMAGE.
 		</div>
 		<script>
 			angular.module("Admin", [])
-				.controller("Admin", ["$scope", "$http", function($scope, $http){
+				.controller("Admin", ["$scope", "$http", "$window",  function($scope, $http, $window){
 					$scope.form = {};
+					$scope.dl = function(){
+                                                $window.open('/dl', '_blank');
+					}
 					$scope.addUser = function(){
 						$http({method:'POST', url:'/admin', data:$scope.form.username})
 							.success(function(){ console.log("Adding user worked"); })
