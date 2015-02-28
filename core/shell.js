@@ -75,8 +75,9 @@ function fileList($http){
 	return {
 		restrict: 'A',
 		link: function(s,e,a){
-			$http({method:"GET", url:"/file"})
+			$http({method:"GET", url:"/file/"})
 				.success(function(d){
+                                        console.log("Files found:", d);
 					d.forEach(function(f){
 						var p = window.location.pathname;
 						var link = p.length == 1 ? "/file/"+f : "/file"+p+"/"+f;
@@ -148,7 +149,7 @@ function Menu($rootScope, $scope, $http, $cookies){
 	$scope.upload = function(){
 		var fd = new FormData();
 		fd.append("f", $("#file")[0].files[0]);
-		$http({ method: 'POST', url: '/file', data: fd, headers: {'Content-Type': undefined}, transformRequest:angular.identity })
+		$http({ method: 'POST', url: '/file/', data: fd, headers: {'Content-Type': undefined}, transformRequest:angular.identity })
 			.success(function(){ console.log("upload worked"); window.location.reload(); })
 			.error(function(){ console.log("upload failed:", arguments); });
 	}
